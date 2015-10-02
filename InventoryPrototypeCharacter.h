@@ -1,7 +1,7 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "GameFramework/Character.h"
-#include "Item.h"
+#include "Inventory.h"
 #include "InventoryPrototypeCharacter.generated.h"
 
 class UInputComponent;
@@ -116,12 +116,12 @@ private:
     bool isSprinting;
     bool isRunning;
     bool isWalking;
-    bool isMoving;
 
-    void staminaCheck();
-    void movingCheck();
+    bool staminaModifyCheck(int stamina, int staminaRate, int maxStamina);
+    bool movingCheck();
     void modifyStamina();
-    void setMovingStaminaRate();
+    int getStaminaRate(bool isMoving, bool isSprinting, bool isRunning, bool isWalking);
+    void staminaSystem();
 
 public:
     UFUNCTION(BlueprintCallable, Category = Stamina)
@@ -135,15 +135,17 @@ public:
 
     //Inventory
 private:
-    TArray<Item*> Inventory;
-    Item testItem1;
+    
+    Inventory* inventory;
+    Item* testItem;
+    Item* testItem1;
 
 public:
     UFUNCTION(BlueprintCallable, Category = Inventory)
     void printInv();
 
     UFUNCTION(BlueprintCallable, Category = Inventory)
-    void pickUpItem();
+    void pickUpItem(Item* item);
 
     /*UFUNCTION(BlueprintCallable, Category = Invenotory)
     void dropItem();*/

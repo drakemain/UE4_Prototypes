@@ -56,8 +56,9 @@ AInventoryPrototypeCharacter::AInventoryPrototypeCharacter()
     this->isRunning = true;
 
     //inventory and items
-    Item* item = &testItem1;
-    item = new Item(0, "TEST", 5);
+    this->inventory = new Inventory(150);
+    this->testItem = new Item(0, "ITEM", 5);
+    this->testItem1 = new Item(1, "myItem", 10);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -229,101 +230,124 @@ bool AInventoryPrototypeCharacter::EnableTouchscreenMovement(class UInputCompone
 }
 
 //Stamina and Movement
-void AInventoryPrototypeCharacter::staminaCheck() {
-    if (staminaRate < 0) {
-        if (stamina > 0) {
-            modifyStamina();
-        }
-        else if (stamina < 0) {
-            stamina = 0;
-        }
-    }
-    else if (staminaRate > 0) {
-        if (stamina < maxStamina) {
-            modifyStamina();
-        }
-        else if (stamina > maxStamina) {
-            stamina = maxStamina;
+bool AInventoryPrototypeCharacter::staminaModifyCheck(int stamina, int staminaRate, int maxStamina) {
+    bool canModifyStamina = false;
+    
+    if (staminaRate < 0 && stamina > 0) {
+        canModifyStamina = true;
+        if (stamina < 0) {
+            this->stamina = 0;
         }
     }
-    UE_LOG(LogTemp, Log, TEXT("Stamina: %d"), this->stamina);
+    else if (staminaRate > 0 && stamina < maxStamina) {
+        canModifyStamina = true;
+        if (stamina > maxStamina) {
+            this->stamina = this->maxStamina;
+        }
+    }
+    
+    return canModifyStamina;
 }
 
-void AInventoryPrototypeCharacter::movingCheck() {
-    
-    
-    if (this->GetVelocity().IsZero() && this->staminaRate != 5) {
-        this->staminaRate = 5;
+bool AInventoryPrototypeCharacter::movingCheck() {
+    if (GetVelocity().IsZero()) {
+        return false;
     }
     else {
-        this->setMovingStaminaRate();
+        return true;
     }
-    UE_LOG(LogTemp, Log, TEXT("Stamina Rate: %d"), this->staminaRate);
 }
 
-void AInventoryPrototypeCharacter::setMovingStaminaRate() {
-    if (isSprinting) {
-        staminaRate = -5;
+int AInventoryPrototypeCharacter::getStaminaRate(bool isMoving, bool isSprinting, bool isRunning, bool isWalking) {
+    int stamRateToSet;
+    
+    if (!isMoving) {
+        stamRateToSet = 3;
     }
-    else if (isRunning) {
-        staminaRate = 1;
+    else {
+
+        if (isSprinting) {
+            stamRateToSet = -7;
+        }
+        else if (isRunning) {
+            stamRateToSet = 1;
+        }
+        else if (isWalking) {
+            stamRateToSet = 2;
+        }
     }
-    else if (isWalking) {
-        staminaRate = 3;
-    }
+
+    return stamRateToSet;
 }
 
 void AInventoryPrototypeCharacter::modifyStamina() {
-    stamina += staminaRate;
+    this->stamina += this->staminaRate;
+
+    if (this->stamina > this->maxStamina) {
+        this->stamina = this->maxStamina;
+    }
+    else if (this->stamina < 0) {
+        this->stamina = 0;
+    }
 }
 
 void AInventoryPrototypeCharacter::sprint() {
-    GetCharacterMovement()->MaxWalkSpeed = 1000;
-    isSprinting = true;
-    isRunning = false;
-    isWalking = false;
+    GetCharacterMovement()->MaxWalkSpeed = 1100;
+    this->isSprinting = true;
+    this->isRunning = false;
+    this->isWalking = false;
 }
 
 void AInventoryPrototypeCharacter::run() {
     GetCharacterMovement()->MaxWalkSpeed = 600;
-    isSprinting = false;
-    isRunning = true;
-    isWalking = false;
+    this->isSprinting = false;
+    this->isRunning = true;
+    this->isWalking = false;
 }
 
 void AInventoryPrototypeCharacter::walk() {
     GetCharacterMovement()->MaxWalkSpeed = 300;
-    isSprinting = false;
-    isRunning = false;
-    isWalking = true;
+    this->isSprinting = false;
+    this->isRunning = false;
+    this->isWalking = true;
+}
+
+void AInventoryPrototypeCharacter::staminaSystem() {
+    this->staminaRate = getStaminaRate(movingCheck(), isSprinting, isRunning, isWalking);
+    
+    if (staminaModifyCheck(stamina, staminaRate, maxStamina)) {
+        modifyStamina();
+
+        if (this->stamina <= 0) {
+            run();
+        }
+
+        UE_LOG(LogTemp, Warning, TEXT("Stamina Check is TRUE."));
+        UE_LOG(LogTemp, Log, TEXT("Stamina Rate: %d"), this->staminaRate);
+        UE_LOG(LogTemp, Log, TEXT("Stamina: %d"), this->stamina);
+    }
 }
 
 //Inventory
-void AInventoryPrototypeCharacter::pickUpItem() {
-    Inventory.Add(&testItem1);
+void AInventoryPrototypeCharacter::pickUpItem(Item* item) {
+    inventory->add(item);
 }
-
-/*
-void AInventoryPrototypeCharacter::dropItem() {
-    this->Inventory.Pop(&testItem1);
-}*/
 
 void AInventoryPrototypeCharacter::printInv() {
     UE_LOG(LogTemp, Warning, TEXT("Attempting to log inventory!"));
 
-    if (Inventory.Num() == 0) {
+    if (inventory->getStackCount() == 0) {
         UE_LOG(LogTemp, Log, TEXT("Inventory is empty."));
         return;
     }
 
-    for (int i = 0; i < Inventory.Num(); i++){
-        UE_LOG(LogTemp, Log, TEXT("ITEM: %s"), *Inventory[i]->name);
-        UE_LOG(LogTemp, Log, TEXT("Weight: %d"), Inventory[i]->weight);
-        UE_LOG(LogTemp, Log, TEXT("ITEM: %d"), Inventory[i]->ID);
+    for (int i = 0; i < inventory->getStackCount(); i++){
+        UE_LOG(LogTemp, Log, TEXT("ITEM: %s"), *inventory->getName(i));
+        UE_LOG(LogTemp, Log, TEXT("Weight: %d"), inventory->getWeight(i));
+        UE_LOG(LogTemp, Log, TEXT("ITEM: %d"), inventory->getID(i));
     }
 }
 
 void AInventoryPrototypeCharacter::Tick(float delta) {
-    this->movingCheck();    
-    this->staminaCheck();
+    staminaSystem();
 }
